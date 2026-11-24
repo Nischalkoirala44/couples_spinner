@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Velvet Spin — Couples Game</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Plus Jakarta Sans & Playfair Display -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            950: '#070c14',
+                            900: '#0b131e',
+                            800: '#131e2f',
+                            700: '#1c2b42'
+                        },
+                        crimson: {
+                            400: '#fb7185',
+                            500: '#f43f5e',
+                            600: '#e11d48',
+                            700: '#be123c'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        serif: ['"Playfair Display"', 'serif'],
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 4s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-6px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom styles for tactile game feel and mobile polish */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        input {
+            user-select: text;
+        }
+        body {
+            background-color: #0b131e;
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(225, 29, 72, 0.16) 0%, transparent 55%),
+                radial-gradient(circle at 85% 90%, rgba(190, 18, 60, 0.12) 0%, transparent 50%);
+            min-height: 100dvh;
+            overflow-x: hidden;
+        }
+
+        /* Glowing Spin Button */
+        .spin-btn-glow {
+            box-shadow: 0 0 25px rgba(225, 29, 72, 0.55), inset 0 2px 4px rgba(255, 255, 255, 0.35);
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .spin-btn-glow:active:not(:disabled) {
+            transform: scale(0.93);
+            box-shadow: 0 0 15px rgba(225, 29, 72, 0.4);
+        }
+
+        /* Wheel Outer Rim Shadow */
+        .wheel-container {
+            box-shadow: 
+                0 20px 50px -12px rgba(0, 0, 0, 0.8),
+                0 0 35px rgba(225, 29, 72, 0.2);
+        }
+
+        /* Pointer Needle Tick Animation */
+        @keyframes pointerTick {
+            0% { transform: translateX(-50%) rotate(0deg); }
+            35% { transform: translateX(-50%) rotate(-24deg); }
+            100% { transform: translateX(-50%) rotate(0deg); }
+        }
+        .needle-tick {
+            animation: pointerTick 0.14s ease-out;
+        }
+
+        /* Custom Scrollbar for Drawer */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b131e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1c2b42;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="text-slate-100 font-sans flex flex-col justify-between antialiased selection:bg-crimson-600 selection:text-white">
+
+    <!-- ==================== HEADER ==================== -->
+    <header class="w-full max-w-md mx-auto px-4 pt-4 pb-2 flex items-center justify-between z-10">
+        <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-crimson-500 to-crimson-700 flex items-center justify-center shadow-lg shadow-crimson-600/30">
+                <i class="fa-solid fa-heart text-white text-base"></i>
+            </div>
+            <div>
+                <h1 class="font-serif text-xl font-bold tracking-tight text-white leading-none">Velvet Spin</h1>
+                <p class="text-[11px] text-rose-300/75 font-medium tracking-wide uppercase mt-0.5">Couples Edition</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- Sound Mute Toggle -->
+            <button id="muteBtn" aria-label="Toggle Sound" class="w-10 h-10 rounded-xl bg-navy-800/90 border border-slate-700/60 flex items-center justify-center text-rose-300 hover:text-white hover:border-crimson-500/50 transition active:scale-95">
+                <i id="muteIcon" class="fa-solid fa-volume-high text-sm"></i>
+            </button>
+            <!-- Customize Wheel Button -->
+            <button id="openEditorBtn" aria-label="Edit Tasks" class="h-10 px-3.5 rounded-xl bg-navy-800/90 border border-slate-700/60 flex items-center gap-2 text-xs font-semibold text-rose-200 hover:text-white hover:border-crimson-500/50 transition active:scale-95">
+                <i class="fa-solid fa-sliders text-crimson-400"></i>
+                <span>Tasks</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ==================== MAIN GAME AREA ==================== -->
+    <main class="w-full max-w-md mx-auto px-4 flex-1 flex flex-col items-center justify-evenly gap-3 py-1">
+
+        <!-- Player Turn Tracker Card -->
+        <section class="w-full bg-navy-800/75 backdrop-blur-md border border-slate-700/50 rounded-2xl p-3 shadow-xl">
+            <div class="flex items-center justify-between gap-2 mb-2">
+                <!-- Player 1 Input Pill -->
+                <div id="p1Badge" onclick="selectPlayer(0)" class="flex-1 cursor-pointer rounded-xl p-2 border transition-all flex items-center gap-2 bg-crimson-600/20 border-crimson-500 shadow-sm">
+                    <span class="w-6 h-6 rounded-full bg-crimson-500/20 text-crimson-400 flex items-center justify-center text-xs shrink-0">
+                        <i class="fa-solid fa-venus"></i>
+                    </span>
+                    <input id="p1NameInput" type="text" value="Her" maxlength="14" aria-label="Player 1 Name"
+                        onclick="event.stopPropagation()"
+                        class="w-full bg-transparent text-sm font-bold text-white focus:outline-none focus:underline truncate">
+                </div>
+
+                <!-- Swap Turn Button -->
+                <button id="swapTurnBtn" title="Switch Turn" class="w-9 h-9 rounded-full bg-navy-900 border border-slate-700/70 text-rose-300 hover:text-white hover:border-crimson-500 flex items-center justify-center shrink-0 transition active:rotate-180 duration-300">
+                    <i class="fa-solid fa-repeat text-xs"></i>
+                </button>
+
+                <!-- Player 2 Input Pill -->
+                <div id="p2Badge" onclick="selectPlayer(1)" class="flex-1 cursor-pointer rounded-xl p-2 border border-transparent bg-navy-900/60 transition-all flex items-center gap-2 opacity-75">
+                    <span class="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-xs shrink-0">
+                        <i class="fa-solid fa-mars"></i>
+                    </span>
+                    <input id="p2NameInput" type="text" value="Him" maxlength="14" aria-label="Player 2 Name"
+                        onclick="event.stopPropagation()"
+                        class="w-full bg-transparent text-sm font-bold text-white focus:outline-none focus:underline truncate">
+                </div>
+            </div>
+
+            <!-- Active Turn Banner -->
+            <div class="text-center py-1 px-2 rounded-lg bg-navy-950/60 border border-white/5">
+                <p class="text-xs sm:text-sm font-semibold text-rose-200">
+                    <span class="inline-block w-2 h-2 rounded-full bg-crimson-500 animate-ping mr-1.5"></span>
+                    <span id="activeTurnLabel" class="text-white font-extrabold">Her</span>'s Turn to Spin!
+                </p>
+            </div>
+        </section>
+
+        <!-- Mode / Intensity Preset Selector -->
+        <section class="w-full grid grid-cols-3 gap-1.5 bg-navy-900/90 p-1.5 rounded-2xl border border-slate-800">
+            <button data-preset="romantic" class="preset-btn py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-0.5 bg-crimson-600 text-white shadow-md shadow-crimson-600/25">
+                <span>Sweet</span>
+                <span class="text-[10px] font-normal opacity-80">Romantic</span>
+            </button>
+            <button data-preset="flirty" class="preset-btn py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-0.5 text-slate-400 hover:text-rose-200">
+                <span>Playful</span>
+                <span class="text-[10px] font-normal opacity-75">& Flirty</span>
+            </button>
+            <button data-preset="spicy" class="preset-btn py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-0.5 text-slate-400 hover:text-rose-200">
+                <span>Spicy</span>
+                <span class="text-[10px] font-normal opacity-75">Bold Dares</span>
+            </button>
+        </section>
+
+        <!-- Interactive Wheel Container -->
+        <section class="relative w-full max-w-[340px] sm:max-w-[370px] aspect-square flex items-center justify-center my-1">
+            <!-- Top Pointer Needle -->
+            <div id="wheelPointer" class="absolute -top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none drop-shadow-[0_4px_8px_rgba(0,0,0,0.65)]">
+                <svg width="38" height="44" viewBox="0 0 38 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19 43L3.5 14.5C1.5 10.5 4.2 3 10.5 3H27.5C33.8 3 36.5 10.5 34.5 14.5L19 43Z" fill="#fb7185" stroke="#fff1f2" stroke-width="2.5"/>
+                    <circle cx="19" cy="13" r="4.5" fill="#0b131e"/>
+                </svg>
+            </div>
+
+            <!-- Outer Decorative Bezel -->
+            <div class="w-full h-full rounded-full p-2.5 bg-gradient-to-b from-slate-700/80 via-navy-800 to-navy-950 border-2 border-rose-400/30 wheel-container relative flex items-center justify-center">
+                <canvas id="wheelCanvas" class="w-full h-full rounded-full cursor-pointer"></canvas>
+
+                <!-- Center Hub Spin Button -->
+                <button id="centerSpinBtn" aria-label="Spin Wheel"
+                    class="absolute w-20 h-20 sm:w-22 sm:h-22 rounded-full bg-gradient-to-br from-crimson-500 via-crimson-600 to-crimson-700 border-4 border-rose-100 text-white font-extrabold text-sm tracking-wider uppercase flex flex-col items-center justify-center spin-btn-glow z-10 cursor-pointer">
+                    <span class="leading-none">SPIN</span>
+                    <i class="fa-solid fa-heart text-[10px] text-rose-200 mt-1"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Bottom Primary Action CTA (Thumb-Friendly) -->
+        <section class="w-full pb-3">
+            <button id="mainSpinBtn"
+                class="w-full py-4 rounded-2xl bg-gradient-to-r from-crimson-600 via-rose-600 to-crimson-600 hover:from-crimson-500 hover:to-rose-500 text-white font-extrabold text-base tracking-wide uppercase shadow-lg shadow-crimson-600/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span id="mainSpinBtnText">Spin for Her</span>
+            </button>
+        </section>
+    </main>
+
+    <!-- ==================== RESULT MODAL ==================== -->
+    <div id="resultModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-navy-950/85 backdrop-blur-md transition-opacity duration-300">
+        <div id="resultCard" class="w-full max-w-sm bg-gradient-to-b from-navy-800 to-navy-900 border border-rose-400/30 rounded-3xl p-6 text-center shadow-2xl transform scale-95 transition-transform duration-300 relative overflow-hidden">
+            <!-- Subtle Ambient Glow -->
+            <div class="absolute -top-20 left-1/2 -translate-x-1/2 w-48 h-48 bg-crimson-500/25 rounded-full blur-3xl pointer-events-none"></div>
+
+            <!-- Badge -->
+            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-crimson-500/20 border border-crimson-500/40 text-rose-300 text-xs font-bold uppercase tracking-wider mb-3">
+                <i class="fa-solid fa-fire-flame-curved text-crimson-400"></i>
+                <span id="modalModeTag">Sweet & Romantic</span>
+            </div>
+
+            <!-- Prompt Subject -->
+            <p class="text-rose-200/90 text-sm font-medium mb-1">
+                <span id="modalPlayerName" class="text-white font-extrabold underline decoration-crimson-500 decoration-2 underline-offset-4">Her</span> has to:
+            </p>
+
+            <!-- Winning Task Text -->
+            <div class="my-4 py-5 px-4 rounded-2xl bg-navy-950/80 border border-rose-500/25 shadow-inner">
+                <h2 id="modalTaskText" class="font-serif text-2xl sm:text-3xl font-bold text-white leading-snug">
+                    Kiss on the neck
+                </h2>
+            </div>
+
+            <!-- Optional Countdown Timer Section (Auto-detects seconds in task or offers quick timer) -->
+            <div id="timerContainer" class="mb-5 hidden">
+                <div class="bg-navy-950/60 border border-slate-700/60 rounded-2xl p-3 flex items-center justify-between">
+                    <div class="text-left">
+                        <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block">Action Timer</span>
+                        <span id="timerDisplay" class="text-2xl font-mono font-extrabold text-rose-400">00:30</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="timerToggleBtn" class="px-4 py-2 rounded-xl bg-crimson-600 hover:bg-crimson-500 text-white text-xs font-bold transition active:scale-95">
+                            <i class="fa-solid fa-play mr-1"></i> Start
+                        </button>
+                        <button id="timerResetBtn" aria-label="Reset Timer" class="w-9 h-9 rounded-xl bg-navy-800 border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition">
+                            <i class="fa-solid fa-rotate-left text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Action Buttons -->
+            <div class="flex flex-col gap-2.5">
+                <button id="doneNextBtn" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-crimson-600 to-rose-600 hover:from-crimson-500 hover:to-rose-500 text-white font-bold text-sm tracking-wide uppercase shadow-lg shadow-crimson-600/30 active:scale-95 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-check"></i>
+                    <span>Done! Next Turn</span>
+                </button>
+                <button id="spinAgainSameBtn" class="w-full py-2.5 rounded-xl bg-transparent hover:bg-white/5 text-slate-400 hover:text-rose-200 text-xs font-semibold transition">
+                    Re-spin for <span id="reSpinPlayerLabel">Her</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== CUSTOM WHEEL EDITOR DRAWER ==================== -->
+    <div id="editorDrawer" class="fixed inset-0 z-50 hidden bg-navy-950/80 backdrop-blur-sm transition-opacity">
+        <div class="fixed inset-x-0 bottom-0 max-w-md mx-auto bg-navy-900 border-t border-rose-500/30 rounded-t-3xl p-5 shadow-2xl max-h-[85dvh] flex flex-col">
+            <!-- Drag Handle -->
+            <div class="w-12 h-1.5 bg-slate-700 rounded-full mx-auto mb-4"></div>
+
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <h3 class="font-serif text-xl font-bold text-white">Customize Slices</h3>
+                    <p id="editorPresetSubtitle" class="text-xs text-rose-300/80">Editing: Sweet & Romantic</p>
+                </div>
+                <button id="closeEditorBtn" class="w-9 h-9 rounded-full bg-navy-800 text-slate-300 hover:text-white flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Add New Slice Form -->
+            <form id="addSliceForm" class="flex gap-2 mb-4">
+                <input id="newSliceInput" type="text" placeholder="e.g., Kiss on the neck (15s)..." maxlength="42" required
+                    class="flex-1 bg-navy-950 border border-slate-700 focus:border-crimson-500 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none">
+                <button type="submit" class="px-4 py-2.5 rounded-xl bg-crimson-600 hover:bg-crimson-500 text-white font-bold text-sm shrink-0 active:scale-95 transition">
+                    <i class="fa-solid fa-plus"></i> Add
+                </button>
+            </form>
+
+            <!-- Current Slices List -->
+            <div id="sliceListContainer" class="flex-1 overflow-y-auto space-y-2 pr-1 mb-4">
+                <!-- Populated dynamically via JS -->
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="flex items-center justify-between gap-3 pt-3 border-t border-slate-800">
+                <button id="resetPresetBtn" type="button" class="px-3.5 py-2.5 rounded-xl bg-navy-800 hover:bg-navy-700 text-rose-300 text-xs font-semibold border border-slate-700 transition">
+                    <i class="fa-solid fa-rotate-left mr-1"></i> Reset Defaults
+                </button>
+                <button id="saveEditorBtn" type="button" class="flex-1 py-2.5 rounded-xl bg-crimson-600 hover:bg-crimson-500 text-white text-sm font-bold shadow-md transition">
+                    Done
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification for Validation / Feedback -->
+    <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full bg-navy-800 border border-crimson-500/50 text-white text-xs font-semibold shadow-xl opacity-0 pointer-events-none transition-opacity duration-300">
+        Message here
+    </div>
+
+    <!-- ==================== APPLICATION SCRIPT ==================== -->
+    <script>
+        /**
+         * DEFAULT PRESET DATA (Zero database required)
+         */
+        const DEFAULT_PRESETS = {
+            romantic: {
+                label: "Sweet & Romantic",
+                items: [
+                    "Kiss on the neck",
+                    "30s tight warm hug",
+                    "Whisper a sweet secret",
+                    "Gentle forehead kiss",
+                    "Hold hands & stare 20s",
+                    "Give a genuine compliment",
+                    "Slow dance for 45s",
+                    "1 min shoulder massage"
+                ]
+            },
+            flirty: {
+                label: "Playful & Flirty",
+                items: [
+                    "Kiss on the neck",
+                    "Bite lower lip softly",
+                    "Sit on partner's lap",
+                    "Ask a spicy truth",
+                    "Kiss on the cheek",
+                    "15s eye contact no blinking",
+                    "Trace jawline with finger",
+                    "Compliment best feature"
+                ]
+            },
+            spicy: {
+                label: "Spicy / Dare",
+                items: [
+                    "Passionate 15s kiss",
+                    "Kiss on the neck",
+                    "Remove one accessory",
+                    "Whisper a fantasy",
+                    "Neck & collarbone kisses",
+                    "Blindfold for 30s",
+                    "Give a gentle love bite",
+                    "Partner's choice dare"
+                ]
+            }
+        };
+
+        /**
+         * APPLICATION STATE
+         */
+        const STORAGE_KEY = 'velvet_spin_couples_v1';
+        let state = {
+            players: ["Her", "Him"],
+            currentPlayerIdx: 0,
+            currentPreset: "romantic",
+            presets: JSON.parse(JSON.stringify(DEFAULT_PRESETS)),
+            muted: false
+        };
+
+        // Load saved state from localStorage if available
+        function loadState() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed.players && parsed.players.length === 2) state.players = parsed.players;
+                    if (typeof parsed.currentPlayerIdx === 'number') state.currentPlayerIdx = parsed.currentPlayerIdx;
+                    if (parsed.currentPreset && parsed.presets) {
+                        state.currentPreset = parsed.currentPreset;
+                        state.presets = parsed.presets;
+                    }
+                    if (typeof parsed.muted === 'boolean') state.muted = parsed.muted;
+                }
+            } catch (e) {
+                console.warn("Could not load localStorage state:", e);
+            }
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            } catch (e) {
+                console.warn("Could not save localStorage state:", e);
+            }
+        }
+
+        /**
+         * WEB AUDIO API SOUND ENGINE (No external audio files needed)
+         */
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) audioCtx = new AudioContext();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playTickSound() {
+            if (state.muted) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            // Crisp woody/velvet click frequency
+            osc.frequency.setValueAtTime(620, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(140, audioCtx.currentTime + 0.045);
+
+            gain.gain.setValueAtTime(0.22, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.045);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        function playWinSound() {
+            if (state.muted) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6 romantic chime
+            notes.forEach((freq, idx) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                const startTime = audioCtx.currentTime + idx * 0.09;
+                osc.frequency.setValueAtTime(freq, startTime);
+
+                gain.gain.setValueAtTime(0.001, startTime);
+                gain.gain.linearRampToValueAtTime(0.18, startTime + 0.03);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.55);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(startTime);
+                osc.stop(startTime + 0.6);
+            });
+        }
+
+        /**
+         * WHEEL RENDERING & PHYSICS ENGINE
+         */
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+        const pointerEl = document.getElementById('wheelPointer');
+
+        // Alternating romantic dark-mode segment palette
+        const SLICE_PALETTE = [
+            { bg: '#e11d48', text: '#ffffff' }, // Crimson 600
+            { bg: '#162235', text: '#ffe4e6' }, // Deep Navy Slate
+            { bg: '#be123c', text: '#ffffff' }, // Rose 700
+            { bg: '#1e293b', text: '#fecdd3' }, // Slate 800
+            { bg: '#f43f5e', text: '#ffffff' }, // Rose 500
+            { bg: '#111827', text: '#fda4af' }  // Dark Charcoal
+        ];
+
+        let currentRotation = 0; // Radians
+        let isSpinning = false;
+        let lastTickSliceIndex = -1;
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const size = container.clientWidth - 20; // account for padding
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = size * dpr;
+            canvas.height = size * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            drawWheel();
+        }
+
+        function drawWheel() {
+            const items = state.presets[state.currentPreset].items;
+            const count = items.length;
+            const size = canvas.width / (window.devicePixelRatio || 1);
+            const center = size / 2;
+            const radius = center - 2;
+
+            ctx.clearRect(0, 0, size, size);
+            if (count === 0) return;
+
+            const arc = (2 * Math.PI) / count;
+
+            for (let i = 0; i < count; i++) {
+                const startAngle = currentRotation + i * arc;
+                const endAngle = startAngle + arc;
+                const style = SLICE_PALETTE[i % SLICE_PALETTE.length];
+
+                // Draw Slice Wedge
+                ctx.beginPath();
+                ctx.moveTo(center, center);
+                ctx.arc(center, center, radius, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = style.bg;
+                ctx.fill();
+
+                // Subtle Divider Line
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = 'rgba(255, 228, 230, 0.18)';
+                ctx.stroke();
+
+                // Draw Slice Text
+                ctx.save();
+                ctx.translate(center, center);
+                ctx.rotate(startAngle + arc / 2);
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = style.text;
+
+                // Dynamic font size based on slice count & radius
+                const fontSize = Math.max(10, Math.min(13.5, Math.floor(radius / 12.5)));
+                ctx.font = `700 ${fontSize}px "Plus Jakarta Sans", sans-serif`;
+
+                // Wrap or truncate text neatly so it fits inside the wedge
+                const maxTextWidth = radius * 0.56;
+                const label = items[i];
+                drawWrappedSliceText(ctx, label, radius - 14, 0, maxTextWidth, fontSize + 2);
+
+                ctx.restore();
+            }
+        }
+
+        function drawWrappedSliceText(context, text, x, y, maxWidth, lineHeight) {
+            const words = text.split(' ');
+            if (words.length <= 2 || context.measureText(text).width <= maxWidth) {
+                context.fillText(text, x, y, maxWidth);
+                return;
+            }
+
+            // Split into 2 balanced lines for readability
+            const mid = Math.ceil(words.length / 2);
+            const line1 = words.slice(0, mid).join(' ');
+            const line2 = words.slice(mid).join(' ');
+            context.fillText(line1, x, y - lineHeight / 2.2, maxWidth);
+            context.fillText(line2, x, y + lineHeight / 2.2, maxWidth);
+        }
+
+        /**
+         * SPIN EXECUTION WITH PHYSICS EASING & TICK DETECTION
+         */
+        function spinWheel() {
+            if (isSpinning) return;
+            const items = state.presets[state.currentPreset].items;
+            if (items.length < 2) {
+                showToast("Add at least 2 tasks to spin!");
+                return;
+            }
+
+            initAudio();
+            isSpinning = true;
+            updateSpinButtonState(true);
+
+            const spinDuration = 4200 + Math.random() * 1000; // 4.2s - 5.2s
+            const extraSpins = (6 + Math.floor(Math.random() * 4)) * 2 * Math.PI;
+            const randomOffset = Math.random() * 2 * Math.PI;
+            const startRotation = currentRotation;
+            const targetRotation = startRotation + extraSpins + randomOffset;
+            const startTime = performance.now();
+
+            const arc = (2 * Math.PI) / items.length;
+            // Top pointer is at -PI / 2 (12 o'clock)
+            const pointerAngle = (3 * Math.PI) / 2;
+
+            function animate(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / spinDuration, 1);
+
+                // Quintic ease-out for realistic heavy wheel deceleration
+                const easeOut = 1 - Math.pow(1 - progress, 5);
+                currentRotation = startRotation + (targetRotation - startRotation) * easeOut;
+
+                // Determine which slice is currently under the top pointer
+                const normalizedRot = ((currentRotation % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+                const relativeAngle = ((pointerAngle - normalizedRot) + 2 * Math.PI) % (2 * Math.PI);
+                const activeSliceIdx = Math.floor(relativeAngle / arc) % items.length;
+
+                if (activeSliceIdx !== lastTickSliceIndex) {
+                    lastTickSliceIndex = activeSliceIdx;
+                    playTickSound();
+                    // Trigger subtle needle bounce
+                    pointerEl.classList.remove('needle-tick');
+                    void pointerEl.offsetWidth; // reflow
+                    pointerEl.classList.add('needle-tick');
+                }
+
+                drawWheel();
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    isSpinning = false;
+                    updateSpinButtonState(false);
+                    onSpinComplete(items[activeSliceIdx]);
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        function updateSpinButtonState(disabled) {
+            const mainBtn = document.getElementById('mainSpinBtn');
+            const centerBtn = document.getElementById('centerSpinBtn');
+            mainBtn.disabled = disabled;
+            centerBtn.disabled = disabled;
+        }
+
+        /**
+         * RESULT REVEAL, CONFETTI & ACTION TIMER
+         */
+        let timerInterval = null;
+        let timerSecondsLeft = 0;
+        let timerInitialSeconds = 0;
+        let timerRunning = false;
+
+        function onSpinComplete(selectedTask) {
+            playWinSound();
+
+            // Launch romantic crimson & blush confetti
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 65,
+                    spread: 70,
+                    origin: { y: 0.58 },
+                    colors: ['#e11d48', '#fb7185', '#ffe4e6', '#ffffff']
+                });
+            }
+
+            const activePlayer = state.players[state.currentPlayerIdx] || "Partner";
+            document.getElementById('modalModeTag').textContent = state.presets[state.currentPreset].label;
+            document.getElementById('modalPlayerName').textContent = activePlayer;
+            document.getElementById('reSpinPlayerLabel').textContent = activePlayer;
+            document.getElementById('modalTaskText').textContent = selectedTask;
+
+            // Detect if task mentions seconds/minutes (e.g., "30s", "15 sec", "1 min")
+            const detectedSeconds = extractDurationSeconds(selectedTask);
+            setupTimer(detectedSeconds);
+
+            const modal = document.getElementById('resultModal');
+            const card = document.getElementById('resultCard');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                card.classList.remove('scale-95');
+                card.classList.add('scale-100');
+            }, 15);
+        }
+
+        function extractDurationSeconds(text) {
+            const minMatch = text.match(/(\d+)\s*(min|minute)/i);
+            if (minMatch) return parseInt(minMatch[1], 10) * 60;
+            const secMatch = text.match(/(\d+)\s*(s|sec|second)/i);
+            if (secMatch) return parseInt(secMatch[1], 10);
+            return 0;
+        }
+
+        function setupTimer(seconds) {
+            clearInterval(timerInterval);
+            timerRunning = false;
+            const container = document.getElementById('timerContainer');
+            const toggleBtn = document.getElementById('timerToggleBtn');
+
+            if (seconds > 0) {
+                timerInitialSeconds = seconds;
+                timerSecondsLeft = seconds;
+                container.classList.remove('hidden');
+                updateTimerDisplay();
+                toggleBtn.innerHTML = '<i class="fa-solid fa-play mr-1"></i> Start';
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(timerSecondsLeft / 60).toString().padStart(2, '0');
+            const secs = (timerSecondsLeft % 60).toString().padStart(2, '0');
+            document.getElementById('timerDisplay').textContent = `${mins}:${secs}`;
+        }
+
+        document.getElementById('timerToggleBtn').addEventListener('click', () => {
+            const btn = document.getElementById('timerToggleBtn');
+            if (timerRunning) {
+                clearInterval(timerInterval);
+                timerRunning = false;
+                btn.innerHTML = '<i class="fa-solid fa-play mr-1"></i> Resume';
+            } else {
+                if (timerSecondsLeft <= 0) timerSecondsLeft = timerInitialSeconds;
+                timerRunning = true;
+                btn.innerHTML = '<i class="fa-solid fa-pause mr-1"></i> Pause';
+                timerInterval = setInterval(() => {
+                    timerSecondsLeft--;
+                    updateTimerDisplay();
+                    if (timerSecondsLeft <= 0) {
+                        clearInterval(timerInterval);
+                        timerRunning = false;
+                        btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Done!';
+                        playWinSound();
+                    }
+                }, 1000);
+            }
+        });
+
+        document.getElementById('timerResetBtn').addEventListener('click', () => {
+            setupTimer(timerInitialSeconds);
+        });
+
+        function closeResultModal(advanceTurn) {
+            clearInterval(timerInterval);
+            timerRunning = false;
+            const modal = document.getElementById('resultModal');
+            const card = document.getElementById('resultCard');
+            card.classList.remove('scale-100');
+            card.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                if (advanceTurn) {
+                    selectPlayer(state.currentPlayerIdx === 0 ? 1 : 0);
+                }
+            }, 180);
+        }
+
+        /**
+         * PLAYER TURN & PRESET UI MANAGEMENT
+         */
+        function selectPlayer(index) {
+            state.currentPlayerIdx = index;
+            saveState();
+            updateTurnUI();
+        }
+
+        function updateTurnUI() {
+            const p1Badge = document.getElementById('p1Badge');
+            const p2Badge = document.getElementById('p2Badge');
+            const activeName = state.players[state.currentPlayerIdx] || (state.currentPlayerIdx === 0 ? "Her" : "Him");
+
+            if (state.currentPlayerIdx === 0) {
+                p1Badge.className = "flex-1 cursor-pointer rounded-xl p-2 border transition-all flex items-center gap-2 bg-crimson-600/20 border-crimson-500 shadow-sm";
+                p2Badge.className = "flex-1 cursor-pointer rounded-xl p-2 border border-transparent bg-navy-900/60 transition-all flex items-center gap-2 opacity-70";
+            } else {
+                p2Badge.className = "flex-1 cursor-pointer rounded-xl p-2 border transition-all flex items-center gap-2 bg-crimson-600/20 border-crimson-500 shadow-sm";
+                p1Badge.className = "flex-1 cursor-pointer rounded-xl p-2 border border-transparent bg-navy-900/60 transition-all flex items-center gap-2 opacity-70";
+            }
+
+            document.getElementById('activeTurnLabel').textContent = activeName;
+            document.getElementById('mainSpinBtnText').textContent = `Spin for ${activeName}`;
+        }
+
+        function setPreset(presetKey) {
+            if (isSpinning) return;
+            state.currentPreset = presetKey;
+            saveState();
+
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                const isSelected = btn.dataset.preset === presetKey;
+                if (isSelected) {
+                    btn.className = "preset-btn py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-0.5 bg-crimson-600 text-white shadow-md shadow-crimson-600/25";
+                } else {
+                    btn.className = "preset-btn py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-0.5 text-slate-400 hover:text-rose-200";
+                }
+            });
+
+            drawWheel();
+        }
+
+        /**
+         * CUSTOM SLICE EDITOR DRAWER
+         */
+        function renderEditorList() {
+            const listEl = document.getElementById('sliceListContainer');
+            const preset = state.presets[state.currentPreset];
+            document.getElementById('editorPresetSubtitle').textContent = `Editing: ${preset.label} (${preset.items.length} slices)`;
+
+            listEl.innerHTML = '';
+            preset.items.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = "flex items-center justify-between gap-2 bg-navy-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5";
+                row.innerHTML = `
+                    <span class="text-sm text-slate-200 font-medium truncate">${escapeHTML(item)}</span>
+                    <button type="button" data-index="${index}" aria-label="Remove task"
+                        class="remove-slice-btn w-8 h-8 rounded-lg bg-navy-800 hover:bg-crimson-600/20 text-slate-400 hover:text-crimson-400 flex items-center justify-center shrink-0 transition">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+                `;
+                listEl.appendChild(row);
+            });
+
+            document.querySelectorAll('.remove-slice-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idx = parseInt(btn.dataset.index, 10);
+                    if (preset.items.length <= 2) {
+                        showToast("Minimum 2 tasks required on the wheel!");
+                        return;
+                    }
+                    preset.items.splice(idx, 1);
+                    saveState();
+                    renderEditorList();
+                    drawWheel();
+                });
+            });
+        }
+
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 2400);
+        }
+
+        /**
+         * EVENT LISTENERS INITIALIZATION
+         */
+        window.addEventListener('DOMContentLoaded', () => {
+            loadState();
+
+            // Sync Inputs & Mute State
+            const p1Input = document.getElementById('p1NameInput');
+            const p2Input = document.getElementById('p2NameInput');
+            p1Input.value = state.players[0];
+            p2Input.value = state.players[1];
+
+            p1Input.addEventListener('input', (e) => {
+                state.players[0] = e.target.value.trim() || "Her";
+                saveState();
+                updateTurnUI();
+            });
+            p2Input.addEventListener('input', (e) => {
+                state.players[1] = e.target.value.trim() || "Him";
+                saveState();
+                updateTurnUI();
+            });
+
+            // Mute Toggle
+            const muteBtn = document.getElementById('muteBtn');
+            const muteIcon = document.getElementById('muteIcon');
+            function updateMuteIcon() {
+                muteIcon.className = state.muted ? 'fa-solid fa-volume-xmark text-slate-500 text-sm' : 'fa-solid fa-volume-high text-sm';
+            }
+            updateMuteIcon();
+            muteBtn.addEventListener('click', () => {
+                state.muted = !state.muted;
+                saveState();
+                updateMuteIcon();
+                showToast(state.muted ? "Sound muted" : "Sound enabled");
+            });
+
+            // Swap Turn Button
+            document.getElementById('swapTurnBtn').addEventListener('click', () => {
+                selectPlayer(state.currentPlayerIdx === 0 ? 1 : 0);
+            });
+
+            // Preset Buttons
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.addEventListener('click', () => setPreset(btn.dataset.preset));
+            });
+
+            // Spin Triggers (Canvas tap, Center button, Bottom CTA)
+            canvas.addEventListener('click', spinWheel);
+            document.getElementById('centerSpinBtn').addEventListener('click', spinWheel);
+            document.getElementById('mainSpinBtn').addEventListener('click', spinWheel);
+
+            // Result Modal Actions
+            document.getElementById('doneNextBtn').addEventListener('click', () => closeResultModal(true));
+            document.getElementById('spinAgainSameBtn').addEventListener('click', () => {
+                closeResultModal(false);
+                setTimeout(spinWheel, 220);
+            });
+
+            // Editor Drawer Controls
+            const drawer = document.getElementById('editorDrawer');
+            document.getElementById('openEditorBtn').addEventListener('click', () => {
+                if (isSpinning) return;
+                renderEditorList();
+                drawer.classList.remove('hidden');
+            });
+            document.getElementById('closeEditorBtn').addEventListener('click', () => drawer.classList.add('hidden'));
+            document.getElementById('saveEditorBtn').addEventListener('click', () => drawer.classList.add('hidden'));
+
+            document.getElementById('addSliceForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const input = document.getElementById('newSliceInput');
+                const val = input.value.trim();
+                if (!val) return;
+                const items = state.presets[state.currentPreset].items;
+                if (items.length >= 14) {
+                    showToast("Maximum 14 tasks per wheel!");
+                    return;
+                }
+                items.push(val);
+                input.value = '';
+                saveState();
+                renderEditorList();
+                drawWheel();
+            });
+
+            document.getElementById('resetPresetBtn').addEventListener('click', () => {
+                state.presets[state.currentPreset] = JSON.parse(JSON.stringify(DEFAULT_PRESETS[state.currentPreset]));
+                saveState();
+                renderEditorList();
+                drawWheel();
+                showToast("Reset to default tasks");
+            });
+
+            // Initialize UI & Canvas
+            updateTurnUI();
+            setPreset(state.currentPreset);
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+        });
+    </script>
+</body>
+</html>
